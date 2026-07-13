@@ -4,7 +4,9 @@
 
 #define WIN32_LEAN_AND_MEAN
 #define _WIN32_WINNT 0x0600
+#include <winsock2.h>
 #include <windows.h>
+#include <iphlpapi.h>
 #include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
@@ -285,57 +287,58 @@ static void SetEditTextA(HWND hwnd, const char* text) {
     SetWindowTextA(hwnd, text);
 }
 
-// ==================== 刷新网卡列表 ====================
+// ==================== 刷新网卡列表 (Win32 API) ====================
 static void RefreshAdapters(void) {
     SendMessage(g_hAdapter, CB_RESETCONTENT, 0, 0);
 
-    char output[32768];
-    if (RunNetsh(L"interface ip show config", output, sizeof(output)) != 0) {
+    ULONG bufLen = 16384;
+    PIP_ADAPTER_ADDRESSES pAddrs = (PIP_ADAPTER_ADDRESSES)malloc(bufLen);
+    if (!pAddrs) { SetStatus(L"内存分配失败"); return; }
+
+    ULONG ret = GetAdaptersAddresses(
+        AF_UNSPEC,
+        GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
+        NULL, pAddrs, &bufLen);
+
+    if (ret == ERROR_BUFFER_OVERFLOW) {
+        free(pAddrs);
+        pAddrs = (PIP_ADAPTER_ADDRESSES)malloc(bufLen);
+        if (!pAddrs) { SetStatus(L"内存分配失败"); return; }
+        ret = GetAdaptersAddresses(
+            AF_UNSPEC,
+            GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
+            NULL, pAddrs, &bufLen);
+    }
+
+    if (ret != NO_ERROR) {
+        free(pAddrs);
         SetStatus(L"获取网卡列表失败");
         return;
     }
 
-    // 多字节解析 (中文 Windows 输出可能是 GBK/GB2312)
-    char* p = output;
     int count = 0;
-    while (*p) {
-        // 查找 "接口 " 或 "Configuration for interface "
-        char* start = NULL;
-        char* q1 = strstr(p, "\xB5\xC0\"");
-        char* q2 = strstr(p, "interface \"");
-        char* q3 = strstr(p, "face \"");
-
-        if (q3) start = q3 + 5; else if (q2) start = q2 + 10; else if (q1) start = q1 + 2;
-        else {
-            // 直接查找引号行
-            p = strchr(p, '\n');
-            if (!p) break;
-            p++;
-            while (*p == '\r' || *p == ' ') p++;
-            if (*p == '"') {
-                p++;
-                char name[256];
-                int i = 0;
-                while (*p && *p != '"' && i < 255) name[i++] = *p++;
-                name[i] = '\0';
-                if (i > 0) {
-                    SendMessageA(g_hAdapter, CB_ADDSTRING, 0, (LPARAM)name);
-                    count++;
-                }
+    PIP_ADAPTER_ADDRESSES pCur = pAddrs;
+    while (pCur) {
+        // 跳过回环和隧道适配器
+        if (pCur->OperStatus == IfOperStatusUp &&
+            pCur->IfType != IF_TYPE_SOFTWARE_LOOPBACK &&
+            pCur->IfType != IF_TYPE_TUNNEL) {
+            // FriendlyName 是 netsh 接受的网卡名称
+            int wlen = lstrlenW(pCur->FriendlyName);
+            int utf8len = WideCharToMultiByte(CP_UTF8, 0, pCur->FriendlyName, wlen, NULL, 0, NULL, NULL);
+            char* utf8buf = (char*)malloc(utf8len + 1);
+            if (utf8buf) {
+                WideCharToMultiByte(CP_UTF8, 0, pCur->FriendlyName, wlen, utf8buf, utf8len, NULL, NULL);
+                utf8buf[utf8len] = '\0';
+                SendMessageA(g_hAdapter, CB_ADDSTRING, 0, (LPARAM)utf8buf);
+                free(utf8buf);
+                count++;
             }
-            continue;
         }
-
-        char name[256];
-        int i = 0;
-        while (*start && *start != '"' && i < 255) name[i++] = *start++;
-        name[i] = '\0';
-        if (i > 0) {
-            SendMessageA(g_hAdapter, CB_ADDSTRING, 0, (LPARAM)name);
-            count++;
-        }
-        p = (*start) ? start + 1 : start;
+        pCur = pCur->Next;
     }
+
+    free(pAddrs);
 
     if (count > 0) {
         SendMessage(g_hAdapter, CB_SETCURSEL, 0, 0);
@@ -343,7 +346,7 @@ static void RefreshAdapters(void) {
         swprintf(msg, 256, L"已找到 %d 个网络适配器", count);
         SetWindowTextW(g_hStatus, msg);
     } else {
-        SetStatus(L"未找到网络适配器");
+        SetStatus(L"未找到活跃的网络适配器");
     }
 }
 
