@@ -23,7 +23,7 @@ jobs:
 
       - name: Build IPSwitcher.exe
         shell: cmd
-        run: cl /O2 /MT /Fe:IPSwitcher.exe IPSwitcher.c resource.res user32.lib comctl32.lib shell32.lib ole32.lib advapi32.lib /link /SUBSYSTEM:WINDOWS
+        run: cl /O2 /MT /Fe:IPSwitcher.exe IPSwitcher.c resource.res user32.lib comctl32.lib shell32.lib ole32.lib advapi32.lib gdi32.lib /link /SUBSYSTEM:WINDOWS
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
