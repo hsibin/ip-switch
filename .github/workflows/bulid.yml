@@ -1,0 +1,34 @@
+name: Build IPSwitcher
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Compile Resource
+        run: rc /fo resource.res resource.rc
+
+      - name: Build IPSwitcher.exe
+        run: |
+          cl /O2 /MT /Fe:IPSwitcher.exe IPSwitcher.c resource.res ^
+            user32.lib comctl32.lib shell32.lib ole32.lib advapi32.lib ^
+            /link /SUBSYSTEM:WINDOWS
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IPSwitcher
+          path: IPSwitcher.exe

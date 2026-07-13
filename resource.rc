@@ -1,0 +1,34 @@
+#include <windows.h>
+
+// 管理员权限清单
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
+
+// 版本信息
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+FILEFLAGSMASK   0x3fL
+FILEFLAGS       0x0L
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", "IPSwitcher"
+            VALUE "FileDescription", "IP切换器 - Windows IP Configuration Switcher"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "IPSwitcher.exe"
+            VALUE "LegalCopyright", ""
+            VALUE "OriginalFilename", "IPSwitcher.exe"
+            VALUE "ProductName", "IP切换器"
+            VALUE "ProductVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END
