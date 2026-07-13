@@ -1,5 +1,8 @@
 #include <windows.h>
 
+// 应用程序图标
+MAINICON ICON "app.ico"
+
 // 管理员权限清单
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
 
