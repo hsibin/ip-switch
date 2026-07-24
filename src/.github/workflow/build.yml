@@ -1,0 +1,30 @@
+﻿name: Build IP Switcher
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: 安装 CMake
+      uses: lukka/get-cmake@latest
+      
+    - name: 配置项目
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      
+    - name: 编译项目
+      run: cmake --build build --config Release
+      
+    - name: 上传编译产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: IpSwitcher
+        path: build/Release/IpSwitcher.exe
